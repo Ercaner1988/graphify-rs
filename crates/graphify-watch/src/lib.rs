@@ -308,8 +308,7 @@ pub async fn watch_directory_with(
         let root_clone = root.to_path_buf();
         let out_clone = output_dir.to_path_buf();
         let f = Arc::clone(&rebuild_fn);
-        match tokio::task::spawn_blocking(move || f(&root_clone, &out_clone, Some(&relevant)))
-            .await
+        match tokio::task::spawn_blocking(move || f(&root_clone, &out_clone, Some(&relevant))).await
         {
             Ok(Ok(())) => println!("Rebuild complete."),
             Ok(Err(e)) => eprintln!("Rebuild failed: {e}"),
