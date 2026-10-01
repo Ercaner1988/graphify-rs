@@ -348,11 +348,9 @@ fn architecture_level_summary(graph: &KnowledgeGraph, token_budget: usize) -> St
     output
 }
 
-/// Load a knowledge graph from a JSON file.
+/// Load a knowledge graph (`graph.bin` when current, else `graph.json`).
 pub fn load_graph(graph_path: &Path) -> Result<KnowledgeGraph, ServeError> {
-    let content = std::fs::read_to_string(graph_path)?;
-    let value: Value = serde_json::from_str(&content)?;
-    KnowledgeGraph::from_node_link_json(&value).map_err(|e| ServeError::GraphLoad(e.to_string()))
+    KnowledgeGraph::yukle(graph_path).map_err(|e| ServeError::GraphLoad(e.to_string()))
 }
 
 /// Get basic statistics about the graph.

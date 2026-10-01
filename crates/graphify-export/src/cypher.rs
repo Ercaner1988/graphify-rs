@@ -41,7 +41,7 @@ pub fn export_cypher(graph: &KnowledgeGraph, output_dir: &Path) -> anyhow::Resul
     for edge in graph.edges() {
         let rel_type = edge
             .relation
-            .to_uppercase()
+            .to_ascii_uppercase()
             .replace(|c: char| !c.is_ascii_alphanumeric() && c != '_', "_");
         let src_var = var_names
             .get(&edge.source)

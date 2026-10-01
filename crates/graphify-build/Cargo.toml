@@ -12,7 +12,6 @@ tracing.workspace = true
 thiserror.workspace = true
 # 0.32: zopay (zopay-db/zopay-search) ile aynı libsqlite3-sys; iki sürüm `links="sqlite3"` çakışır. API uyumlu.
 rusqlite = { version = "0.32", features = ["bundled"] }
-serde_json.workspace = true
 
 [dev-dependencies]
 tempfile = "3"

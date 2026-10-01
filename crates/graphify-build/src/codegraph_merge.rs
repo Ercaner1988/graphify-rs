@@ -237,16 +237,16 @@ pub fn merge_codegraph_edges(kg: &mut KnowledgeGraph, project_root: &Path) -> Re
                             let mut extra = HashMap::new();
                             extra.insert(
                                 "merge_source".to_string(),
-                                serde_json::Value::String("codegraph".to_string()),
+                                graphify_core::deger::Deger::from("codegraph"),
                             );
                             extra.insert(
                                 "codegraph_kind".to_string(),
-                                serde_json::Value::String(cg_kind.clone()),
+                                graphify_core::deger::Deger::from(cg_kind.clone()),
                             );
                             if let Some(prov) = provenance {
                                 extra.insert(
                                     "codegraph_provenance".to_string(),
-                                    serde_json::Value::String(prov),
+                                    graphify_core::deger::Deger::from(prov),
                                 );
                             }
 
@@ -564,11 +564,11 @@ mod tests {
         assert_eq!(edges[0].target, "gf_bar");
         assert_eq!(
             edges[0].extra.get("merge_source").unwrap(),
-            &serde_json::Value::String("codegraph".to_string())
+            &graphify_core::deger::Deger::from("codegraph")
         );
         assert_eq!(
             edges[0].extra.get("codegraph_kind").unwrap(),
-            &serde_json::Value::String("calls".to_string())
+            &graphify_core::deger::Deger::from("calls")
         );
     }
 

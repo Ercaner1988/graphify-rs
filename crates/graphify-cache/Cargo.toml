@@ -7,8 +7,8 @@ repository.workspace = true
 description = "SHA256-based semantic caching for graphify"
 
 [dependencies]
-serde.workspace = true
-serde_json.workspace = true
+graphify-core.workspace = true
+rkyv.workspace = true
 sha2.workspace = true
 tracing.workspace = true
 thiserror.workspace = true

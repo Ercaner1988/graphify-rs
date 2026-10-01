@@ -20,6 +20,9 @@ pub enum GraphifyError {
     #[error("serialization error: {0}")]
     SerializationError(#[from] serde_json::Error),
 
+    #[error("binary graph file is unreadable or from another format version: {0}")]
+    BinaryFormat(String),
+
     #[error("graph error: {0}")]
     GraphError(String),
 }

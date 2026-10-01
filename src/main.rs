@@ -571,11 +571,7 @@ fn cmd_query(question: &str, use_dfs: bool, budget: usize, graph_path: &str) -> 
         anyhow::bail!("Graph file not found: {}", gp.display());
     }
 
-    let json_str = std::fs::read_to_string(&gp).context("Could not read graph file")?;
-    let json_value: serde_json::Value =
-        serde_json::from_str(&json_str).context("Could not parse graph JSON")?;
-    let graph = graphify_core::graph::KnowledgeGraph::from_node_link_json(&json_value)
-        .context("Could not load graph from JSON")?;
+    let graph = graphify_core::graph::KnowledgeGraph::yukle(&gp).context("Could not load graph")?;
 
     let terms: Vec<String> = question
         .split_whitespace()
@@ -613,19 +609,10 @@ fn cmd_diff(old_path: &str, new_path: &str, output_format: &str) -> Result<()> {
         anyhow::bail!("New graph file not found: {}", new_p.display());
     }
 
-    let old_json: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(&old_p).context("Could not read old graph file")?,
-    )
-    .context("Could not parse old graph JSON")?;
-    let new_json: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(&new_p).context("Could not read new graph file")?,
-    )
-    .context("Could not parse new graph JSON")?;
-
-    let old_graph = graphify_core::graph::KnowledgeGraph::from_node_link_json(&old_json)
-        .context("Could not load old graph")?;
-    let new_graph = graphify_core::graph::KnowledgeGraph::from_node_link_json(&new_json)
-        .context("Could not load new graph")?;
+    let old_graph =
+        graphify_core::graph::KnowledgeGraph::yukle(&old_p).context("Could not load old graph")?;
+    let new_graph =
+        graphify_core::graph::KnowledgeGraph::yukle(&new_p).context("Could not load new graph")?;
 
     let diff = graphify_analyze::graph_diff(&old_graph, &new_graph);
 
@@ -725,11 +712,7 @@ fn cmd_stats(graph_path: &str) -> Result<()> {
         anyhow::bail!("Graph file not found: {}", gp.display());
     }
 
-    let json_str = std::fs::read_to_string(&gp).context("Could not read graph file")?;
-    let json_value: serde_json::Value =
-        serde_json::from_str(&json_str).context("Could not parse graph JSON")?;
-    let graph = graphify_core::graph::KnowledgeGraph::from_node_link_json(&json_value)
-        .context("Could not load graph from JSON")?;
+    let graph = graphify_core::graph::KnowledgeGraph::yukle(&gp).context("Could not load graph")?;
 
     let node_count = graph.node_count();
     let edge_count = graph.edge_count();
@@ -853,11 +836,7 @@ fn cmd_affected(
         anyhow::bail!("Graph file not found: {}", gp.display());
     }
 
-    let json_str = std::fs::read_to_string(&gp).context("Could not read graph file")?;
-    let json_value: serde_json::Value =
-        serde_json::from_str(&json_str).context("Could not parse graph JSON")?;
-    let graph = graphify_core::graph::KnowledgeGraph::from_node_link_json(&json_value)
-        .context("Could not load graph from JSON")?;
+    let graph = graphify_core::graph::KnowledgeGraph::yukle(&gp).context("Could not load graph")?;
 
     let mut changed_files: Vec<String> = files.to_vec();
     if read_stdin {
@@ -968,7 +947,7 @@ fn cmd_affected(
 }
 
 fn is_test_file(path: &str) -> bool {
-    let lp = path.to_lowercase();
+    let lp = path.to_ascii_lowercase();
     let name = lp.rsplit('/').next().unwrap_or(&lp);
     lp.contains("/tests/")
         || lp.contains("/__tests__/")

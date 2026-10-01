@@ -39,13 +39,13 @@ pub fn tokenize(input: &str) -> Vec<String> {
                 && !segment.is_empty()
                 && !segment.chars().last().unwrap().is_uppercase()
             {
-                tokens.push(segment.to_lowercase());
+                tokens.push(katla::katla(&segment));
                 segment.clear();
             }
             segment.push(ch);
         }
         if !segment.is_empty() {
-            tokens.push(segment.to_lowercase());
+            tokens.push(katla::katla(&segment));
         }
     }
     tokens
@@ -554,5 +554,20 @@ mod tests {
             label_score,
             rs_score
         );
+    }
+
+    /// Türkçe büyük/küçük ve aksan farkı aramayı kaçırmaz.
+    #[test]
+    fn turkce_arama_katlanir() {
+        let mut g = KnowledgeGraph::new();
+        g.add_node(make_node("n1", "İstanbulYükleyici", "a.rs"))
+            .unwrap();
+        let idx = SearchIndex::build(&g);
+        for sorgu in ["istanbul", "ISTANBUL", "yukleyici"] {
+            assert!(
+                !idx.search(&[sorgu.to_string()]).is_empty(),
+                "{sorgu} bulunamadı"
+            );
+        }
     }
 }

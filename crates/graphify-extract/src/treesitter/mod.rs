@@ -82,14 +82,14 @@ fn extract_with_treesitter(
                 .label
                 .trim_end_matches("()")
                 .trim_start_matches('.')
-                .to_lowercase();
+                .to_ascii_lowercase();
             (normalized, n.id.clone())
         })
         .collect();
 
     let mut seen_calls: HashSet<(String, String)> = HashSet::new();
     for (caller_nid, callee_name) in &raw_calls {
-        let name_lower = callee_name.to_lowercase();
+        let name_lower = callee_name.to_ascii_lowercase();
         if let Some(callee_nid) = label_to_nid.get(&name_lower) {
             if callee_nid == caller_nid {
                 continue;
@@ -116,7 +116,7 @@ fn extract_with_treesitter(
         for (caller_nid, body_start, body_end) in &ruby_bodies {
             let body_text = &source[*body_start..*body_end];
             let body_str = String::from_utf8_lossy(body_text);
-            let body_lower = body_str.to_lowercase();
+            let body_lower = body_str.to_ascii_lowercase();
             for (func_label, callee_nid) in &label_to_nid {
                 if callee_nid == caller_nid {
                     continue;

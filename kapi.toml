@@ -1,0 +1,26 @@
+# graphify-rs'in altin-kapi beyanı. Değer: "uygulanir" ya da "uygulanmaz".
+# Anahtarlar altin-kapi CONTEXT.md'deki on altı boyuttur.
+#
+# graphify-rs bir çataldır (upstream: TtTRz/graphify-rs). Kapı yalnız bu çatalın
+# pre-push'unda koşar; upstream'in CI'ına bir şey eklenmez.
+
+# Taban çizgilerindeki ad: klasör adı klonlayana göre değişir, bu değişmez.
+repo = "graphify-rs"
+
+[boyut]
+arkayuz = "uygulanir"                  # MCP sunucusu (serve), izleyici (watch)
+onyuz = "uygulanmaz"                   # HTML dışa aktarımı statik çıktı, arayüz değil
+veritabani = "uygulanmaz"              # veritabanı yok; kendi rkyv dosyaları var
+makine_zararsizligi = "uygulanir"      # git kancaları kurar, dosya izler
+tedarik_guvenligi = "uygulanir"
+bellek_guvenligi = "uygulanir"
+kimlik_yolu = "uygulanir"              # Anthropic OAuth belirteci okur
+yayina_hazirlik = "uygulanir"          # crates.io yayını
+kaynak_tuketimi = "uygulanir"          # büyük graf, paralel çıkarım
+birlikte_calisabilirlik = "uygulanir"  # graph.json (NetworkX), MCP, Python graphify
+karakter_yazimi = "uygulanir"
+hata_disiplini = "uygulanir"
+test_gercekciligi = "uygulanir"
+veri_dayanikliligi = "uygulanir"       # önbellek, değişim dizini, graph.bin (atomik yazım)
+surum_izi = "uygulanir"
+belge_dogrulugu = "uygulanir"

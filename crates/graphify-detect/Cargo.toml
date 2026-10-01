@@ -13,9 +13,10 @@ regex.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
 serde.workspace = true
-serde_json.workspace = true
+rkyv.workspace = true
 globset = "0.4"
 walkdir = "2"
 
 [dev-dependencies]
 tempfile = "3"
+serde_json.workspace = true

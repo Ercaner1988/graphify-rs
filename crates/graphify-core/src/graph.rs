@@ -1,5 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 use std::io::Write;
+use std::path::{Path, PathBuf};
 
 use petgraph::Undirected;
 use petgraph::stable_graph::{NodeIndex, StableGraph};
@@ -314,10 +315,91 @@ impl KnowledgeGraph {
     }
 }
 
+/// `graph.bin` yükü: graf ve topluluk bilgisi (JSON'un kaybettiği uyum puanı dahil).
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+struct GrafDokumu {
+    nodes: Vec<GraphNode>,
+    edges: Vec<GraphEdge>,
+    hyperedges: Vec<Hyperedge>,
+    communities: Vec<CommunityInfo>,
+}
+
+impl KnowledgeGraph {
+    /// `dizin`e `graph.json` (dış araçlar: NetworkX, /graphify becerisi) ve
+    /// `graph.bin` (graphify'ın kendi ana deposu) yazar; `graph.json`un yolunu döndürür.
+    pub fn kaydet(&self, dizin: &Path) -> Result<PathBuf> {
+        std::fs::create_dir_all(dizin)?;
+        let json = dizin.join("graph.json");
+        self.write_node_link_json(std::io::BufWriter::new(std::fs::File::create(&json)?))?;
+        self.ikili_yaz(&dizin.join("graph.bin"))?;
+        Ok(json)
+    }
+
+    /// `graph.bin`i geçici dosyadan yeniden adlandırarak yazar: yarım dosya kalmaz.
+    // ponytail: düğüm/kenarlar kopyalanarak dökülüyor (geçici 2x bellek); büyük
+    // graflarda dert olursa ödünç alan bir rkyv sarmalayıcıya geçilir.
+    pub fn ikili_yaz(&self, yol: &Path) -> Result<()> {
+        let dokum = GrafDokumu {
+            nodes: self.nodes().into_iter().cloned().collect(),
+            edges: self.edges().into_iter().cloned().collect(),
+            hyperedges: self.hyperedges.clone(),
+            communities: self.communities.clone(),
+        };
+        let bayt =
+            crate::ikili::kodla(&dokum).map_err(|e| GraphifyError::BinaryFormat(e.to_string()))?;
+        let gecici = yol.with_extension("bin.tmp");
+        std::fs::write(&gecici, bayt)?;
+        std::fs::rename(&gecici, yol)?;
+        Ok(())
+    }
+
+    pub fn ikili_oku(bayt: &[u8]) -> Result<Self> {
+        let d: GrafDokumu = crate::ikili::coz(bayt).ok_or_else(|| {
+            GraphifyError::BinaryFormat("imza, sürüm ya da doğrulama tutmadı".into())
+        })?;
+        let mut kg = Self::new();
+        for n in d.nodes {
+            kg.add_node(n)?;
+        }
+        for e in d.edges {
+            kg.add_edge(e)?;
+        }
+        kg.hyperedges = d.hyperedges;
+        kg.communities = d.communities;
+        Ok(kg)
+    }
+
+    /// Grafı yükler. `yol` `graph.json` ya da `graph.bin` olabilir: yanındaki
+    /// `graph.bin` JSON'dan eski değilse o okunur (hızlı yol); JSON dışarıda
+    /// değiştirildiyse (Python graphify, elle birleştirme) JSON'a düşülür.
+    pub fn yukle(yol: &Path) -> Result<Self> {
+        let bin = yol.with_extension("bin");
+        let json = yol.with_extension("json");
+        let zaman = |p: &Path| std::fs::metadata(p).and_then(|m| m.modified()).ok();
+        if let Some(b) = zaman(&bin)
+            && zaman(&json).is_none_or(|j| b >= j)
+        {
+            match std::fs::read(&bin)
+                .map_err(GraphifyError::from)
+                .and_then(|v| Self::ikili_oku(&v))
+            {
+                Ok(kg) => return Ok(kg),
+                Err(e) if zaman(&json).is_some() => {
+                    warn!("graph.bin okunamadı, JSON'a düşülüyor: {e}")
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        let metin = std::fs::read_to_string(&json)?;
+        Self::from_node_link_json(&serde_json::from_str(&metin)?)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::confidence::Confidence;
+    use crate::deger::Deger;
     use crate::model::NodeType;
 
     fn make_node(id: &str) -> GraphNode {
@@ -473,5 +555,50 @@ mod tests {
         let json: serde_json::Value = serde_json::from_slice(&buf).unwrap();
         assert!(json["nodes"].as_array().unwrap().is_empty());
         assert!(json["links"].as_array().unwrap().is_empty());
+    }
+
+    fn ornek_graf() -> KnowledgeGraph {
+        let mut kg = KnowledgeGraph::new();
+        let mut a = make_node("a");
+        a.extra.insert("etiket".into(), "İzmir".into());
+        a.community = Some(0);
+        kg.add_node(a).unwrap();
+        let mut b = make_node("b");
+        b.community = Some(0);
+        kg.add_node(b).unwrap();
+        kg.add_edge(make_edge("a", "b")).unwrap();
+        kg.communities = vec![CommunityInfo {
+            id: 0,
+            nodes: vec!["a".into(), "b".into()],
+            cohesion: 0.75,
+            label: None,
+        }];
+        kg
+    }
+
+    /// graph.bin JSON'un kaybettiği uyum puanını da taşır; graf aynen döner.
+    #[test]
+    fn ikili_gidis_donus() {
+        let dizin = std::env::temp_dir().join(format!("graphify-ikili-{}", std::process::id()));
+        let kg = ornek_graf();
+        let json = kg.kaydet(&dizin).unwrap();
+        let geri = KnowledgeGraph::yukle(&json).unwrap();
+        assert_eq!((geri.node_count(), geri.edge_count()), (2, 1));
+        assert_eq!(
+            geri.get_node("a").unwrap().extra["etiket"],
+            Deger::from("İzmir")
+        );
+        assert_eq!(
+            geri.communities[0].cohesion, 0.75,
+            "bin'den okunmalı (JSON'da 0.0 olurdu)"
+        );
+        // Bozuk/eski graph.bin: JSON'a düşülür, hata verilmez.
+        std::fs::write(dizin.join("graph.bin"), b"GRFY    bozuk").unwrap();
+        let yedek = KnowledgeGraph::yukle(&json).unwrap();
+        assert_eq!(
+            (yedek.node_count(), yedek.communities[0].cohesion),
+            (2, 0.0)
+        );
+        std::fs::remove_dir_all(&dizin).unwrap();
     }
 }

@@ -48,7 +48,7 @@ pub(crate) fn handle_query_graph(
     let terms: Vec<String> = question
         .split_whitespace()
         .filter(|w| w.len() > 2)
-        .map(|w| w.to_lowercase())
+        .map(katla::katla)
         .collect();
 
     if terms.is_empty() {
@@ -481,7 +481,7 @@ pub(crate) fn handle_explore(graph: &KnowledgeGraph, index: &SearchIndex, args: 
     let terms: Vec<String> = task
         .split_whitespace()
         .filter(|w| w.len() > 2)
-        .map(|w| w.to_lowercase())
+        .map(katla::katla)
         .collect();
 
     if terms.is_empty() {

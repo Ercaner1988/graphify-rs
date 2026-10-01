@@ -3,7 +3,18 @@ use serde::{Deserialize, Serialize};
 /// Confidence level for an extracted relationship.
 ///
 /// Serializes to `"EXTRACTED"` / `"INFERRED"` / `"AMBIGUOUS"` for Python compatibility.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    rkyv::Archive,
+    rkyv::Serialize,
+    rkyv::Deserialize,
+)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[derive(Default)]
 pub enum Confidence {

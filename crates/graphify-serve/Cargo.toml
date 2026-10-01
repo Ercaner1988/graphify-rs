@@ -7,6 +7,7 @@ repository.workspace = true
 description = "MCP server for graph queries"
 
 [dependencies]
+katla.workspace = true
 graphify-core.workspace = true
 graphify-analyze.workspace = true
 graphify-security.workspace = true

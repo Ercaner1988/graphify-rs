@@ -27,7 +27,7 @@ pub fn make_id(parts: &[&str]) -> String {
         }
     }
 
-    cleaned.trim_matches('_').to_lowercase()
+    katla::kucult(cleaned.trim_matches('_'))
 }
 
 #[cfg(test)]
@@ -95,5 +95,11 @@ mod tests {
     fn mixed_cjk_and_special_chars() {
         assert_eq!(make_id(&["类名::方法"]), "类名_方法");
         assert_eq!(make_id(&["my-类"]), "my_类");
+    }
+
+    /// `İ` kimliğe görünmez nokta (U+0307) sokmaz.
+    #[test]
+    fn turkce_buyuk_i_noktasiz_kimlik() {
+        assert_eq!(make_id(&["İzmir", "Işık"]), "izmir_işık");
     }
 }

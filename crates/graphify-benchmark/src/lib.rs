@@ -73,8 +73,7 @@ fn tokens_from_words(words: usize) -> usize {
 /// For each query, we find matching nodes and gather their neighborhood,
 /// then measure how many tokens the resulting context would consume.
 fn simulate_query(graph: &KnowledgeGraph, question: &str) -> usize {
-    let terms: Vec<String> = question
-        .to_lowercase()
+    let terms: Vec<String> = katla::katla(question)
         .split_whitespace()
         .filter(|w| w.len() > 3) // skip short words
         .map(String::from)
@@ -83,7 +82,7 @@ fn simulate_query(graph: &KnowledgeGraph, question: &str) -> usize {
     let mut matched_nodes: Vec<(f64, String)> = Vec::new();
     for node_id in graph.node_ids() {
         if let Some(node) = graph.get_node(&node_id) {
-            let label_lower = node.label.to_lowercase();
+            let label_lower = katla::katla(&node.label);
             let score: f64 = terms
                 .iter()
                 .map(|t| {

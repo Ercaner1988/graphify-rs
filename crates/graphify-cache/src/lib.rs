@@ -6,7 +6,10 @@
 use std::fs;
 use std::path::Path;
 
-use serde::{Serialize, de::DeserializeOwned};
+use rkyv::api::high::{HighDeserializer, HighSerializer, HighValidator};
+use rkyv::bytecheck::CheckBytes;
+use rkyv::ser::allocator::ArenaHandle;
+use rkyv::util::AlignedVec;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 use tracing::debug;
@@ -19,9 +22,6 @@ const CACHE_DIR: &str = "graphify-rs-out/cache";
 pub enum CacheError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-
-    #[error("serialization error: {0}")]
-    Serde(#[from] serde_json::Error),
 }
 
 /// Compute the SHA256 hex digest of a file's content.
@@ -40,11 +40,11 @@ pub fn content_hash(data: &[u8]) -> String {
 
 /// Build a cache filename from a file path relative to `root`.
 ///
-/// The key is `{sha256}.json` where the hash is computed over the file content,
+/// The key is `{sha256}.bin` (rkyv, see `graphify_core::ikili`) where the hash is computed over the file content,
 /// so any change in content naturally invalidates the cache entry.
 fn cache_key(path: &Path, _root: &Path) -> String {
     let hash = file_hash(path).unwrap_or_default();
-    format!("{hash}.json")
+    format!("{hash}.bin")
 }
 
 /// Load a cached extraction result for `path`, returning `None` on cache miss.
@@ -52,41 +52,47 @@ fn cache_key(path: &Path, _root: &Path) -> String {
 /// A cache miss occurs when:
 /// - The source file cannot be read (hash fails).
 /// - No cache entry exists for the current content hash.
-/// - The cached JSON cannot be deserialized into `T`.
-pub fn load_cached<T: DeserializeOwned>(path: &Path, root: &Path) -> Option<T> {
+/// - The cached entry fails rkyv validation or is from another format version.
+pub fn load_cached<T>(path: &Path, root: &Path) -> Option<T>
+where
+    T: rkyv::Archive,
+    T::Archived: for<'a> CheckBytes<HighValidator<'a, rkyv::rancor::Error>>
+        + rkyv::Deserialize<T, HighDeserializer<rkyv::rancor::Error>>,
+{
     load_cached_from(path, root, Path::new(CACHE_DIR))
 }
 
 /// Like [`load_cached`] but with an explicit cache directory.
-pub fn load_cached_from<T: DeserializeOwned>(
-    path: &Path,
-    root: &Path,
-    cache_dir: &Path,
-) -> Option<T> {
+pub fn load_cached_from<T>(path: &Path, root: &Path, cache_dir: &Path) -> Option<T>
+where
+    T: rkyv::Archive,
+    T::Archived: for<'a> CheckBytes<HighValidator<'a, rkyv::rancor::Error>>
+        + rkyv::Deserialize<T, HighDeserializer<rkyv::rancor::Error>>,
+{
     let key = cache_key(path, root);
     let cache_path = cache_dir.join(&key);
     if !cache_path.exists() {
         debug!(?cache_path, "cache miss");
         return None;
     }
-    let data = fs::read_to_string(&cache_path).ok()?;
-    serde_json::from_str(&data).ok()
+    graphify_core::ikili::coz(&fs::read(&cache_path).ok()?)
 }
 
 /// Save an extraction result to cache.
 ///
 /// Returns `true` on success, `false` on any I/O or serialization failure.
-pub fn save_cached<T: Serialize>(path: &Path, result: &T, root: &Path) -> bool {
+pub fn save_cached<T>(path: &Path, result: &T, root: &Path) -> bool
+where
+    T: for<'a> rkyv::Serialize<HighSerializer<AlignedVec, ArenaHandle<'a>, rkyv::rancor::Error>>,
+{
     save_cached_to(path, result, root, Path::new(CACHE_DIR))
 }
 
 /// Like [`save_cached`] but with an explicit cache directory.
-pub fn save_cached_to<T: Serialize>(
-    path: &Path,
-    result: &T,
-    root: &Path,
-    cache_dir: &Path,
-) -> bool {
+pub fn save_cached_to<T>(path: &Path, result: &T, root: &Path, cache_dir: &Path) -> bool
+where
+    T: for<'a> rkyv::Serialize<HighSerializer<AlignedVec, ArenaHandle<'a>, rkyv::rancor::Error>>,
+{
     let key = cache_key(path, root);
     let cache_path = cache_dir.join(&key);
 
@@ -97,9 +103,9 @@ pub fn save_cached_to<T: Serialize>(
     }
 
     let tmp = cache_path.with_extension("tmp");
-    match serde_json::to_string(result) {
-        Ok(json) => {
-            if fs::write(&tmp, &json).is_ok() {
+    match graphify_core::ikili::kodla(result) {
+        Ok(bayt) => {
+            if fs::write(&tmp, &bayt).is_ok() {
                 debug!(?cache_path, "cache write");
                 let ok = fs::rename(&tmp, &cache_path).is_ok();
                 if !ok {
@@ -147,11 +153,10 @@ pub fn invalidate_cached(path: &Path, root: &Path, cache_dir: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde::{Deserialize, Serialize};
     use std::fs;
     use tempfile::TempDir;
 
-    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    #[derive(Debug, Clone, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
     struct DummyResult {
         entities: Vec<String>,
         score: f64,

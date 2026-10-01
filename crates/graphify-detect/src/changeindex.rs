@@ -6,9 +6,11 @@ use std::time::UNIX_EPOCH;
 
 use serde::{Deserialize, Serialize};
 
-pub const CHANGEINDEX_NAME: &str = "changeindex.json";
+pub const CHANGEINDEX_NAME: &str = "changeindex.bin";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct ChangeEntry {
     pub mtime: u64,
     pub size: u64,
@@ -19,21 +21,22 @@ pub struct ChangeEntry {
     pub hash: String,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Default, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct ChangeIndex {
     pub files: HashMap<String, ChangeEntry>,
 }
 
 pub fn load(path: &Path) -> Option<ChangeIndex> {
-    let content = fs::read_to_string(path).ok()?;
-    serde_json::from_str(&content).ok()
+    graphify_core::ikili::coz(&fs::read(path).ok()?)
 }
 
 pub fn save(path: &Path, index: &ChangeIndex) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let json = serde_json::to_vec(index).map_err(std::io::Error::other)?;
+    let json = graphify_core::ikili::kodla(index).map_err(std::io::Error::other)?;
     let tmp = path.with_extension("tmp");
     {
         let mut f = fs::File::create(&tmp)?;

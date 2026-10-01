@@ -3,9 +3,9 @@
 use std::collections::HashMap;
 
 use graphify_core::confidence::Confidence;
+use graphify_core::deger::Deger;
 use graphify_core::id::make_id;
 use graphify_core::model::{GraphEdge, GraphNode, NodeType};
-use serde_json::Value;
 use tree_sitter::Node;
 
 use super::node_text;
@@ -505,13 +505,13 @@ pub(crate) fn add_import_node(
         extra: HashMap::new(),
     });
 
-    let mut extra: HashMap<String, Value> = HashMap::new();
+    let mut extra: HashMap<String, Deger> = HashMap::new();
     if let Some(syms) = imported_symbols
         && !syms.is_empty()
     {
         extra.insert(
             "imported_symbols".to_string(),
-            Value::Array(syms.iter().map(|s| Value::String(s.to_string())).collect()),
+            Deger::Liste(syms.iter().map(|&s| s.into()).collect()),
         );
     }
 

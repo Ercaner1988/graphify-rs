@@ -3,11 +3,23 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::confidence::Confidence;
+use crate::deger::Deger;
 
 /// The kind of entity a graph node represents.
 ///
 /// Serialized as lowercase strings (e.g. `"class"`, `"function"`).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    rkyv::Archive,
+    rkyv::Serialize,
+    rkyv::Deserialize,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum NodeType {
     Class,
@@ -51,7 +63,16 @@ impl std::fmt::Display for NodeType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    rkyv::Archive,
+    rkyv::Serialize,
+    rkyv::Deserialize,
+)]
 pub struct GraphNode {
     pub id: String,
     pub label: String,
@@ -62,7 +83,7 @@ pub struct GraphNode {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub community: Option<usize>,
     #[serde(flatten)]
-    pub extra: HashMap<String, serde_json::Value>,
+    pub extra: HashMap<String, Deger>,
 }
 
 fn default_confidence_score() -> f64 {
@@ -73,7 +94,16 @@ fn default_weight() -> f64 {
     1.0
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    rkyv::Archive,
+    rkyv::Serialize,
+    rkyv::Deserialize,
+)]
 pub struct GraphEdge {
     pub source: String,
     pub target: String,
@@ -89,17 +119,21 @@ pub struct GraphEdge {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provenance: Option<String>,
     #[serde(flatten)]
-    pub extra: HashMap<String, serde_json::Value>,
+    pub extra: HashMap<String, Deger>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct Hyperedge {
     pub nodes: Vec<String>,
     pub relation: String,
     pub label: String,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Default, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct ExtractionResult {
     pub nodes: Vec<GraphNode>,
     pub edges: Vec<GraphEdge>,
@@ -107,7 +141,9 @@ pub struct ExtractionResult {
     pub hyperedges: Vec<Hyperedge>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct CommunityInfo {
     pub id: usize,
     pub nodes: Vec<String>,
@@ -116,7 +152,9 @@ pub struct CommunityInfo {
     pub label: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct GodNode {
     pub id: String,
     pub label: String,
@@ -125,7 +163,9 @@ pub struct GodNode {
     pub community: Option<usize>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct Surprise {
     pub source: String,
     pub target: String,
@@ -134,7 +174,9 @@ pub struct Surprise {
     pub relation: String,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Default, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct AnalysisResult {
     pub god_nodes: Vec<GodNode>,
     pub surprises: Vec<Surprise>,
@@ -142,7 +184,9 @@ pub struct AnalysisResult {
 }
 
 /// A node that bridges multiple communities.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct BridgeNode {
     pub id: String,
     pub label: String,
@@ -154,7 +198,9 @@ pub struct BridgeNode {
 }
 
 /// PageRank importance score for a node.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct PageRankNode {
     pub id: String,
     pub label: String,
@@ -163,7 +209,9 @@ pub struct PageRankNode {
 }
 
 /// A dependency cycle detected in the graph.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct DependencyCycle {
     pub nodes: Vec<String>,
     pub edges: Vec<(String, String)>,
@@ -172,7 +220,9 @@ pub struct DependencyCycle {
 }
 
 /// A node with temporal risk metrics from git history.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct TemporalNode {
     pub id: String,
     pub label: String,
@@ -184,7 +234,9 @@ pub struct TemporalNode {
 }
 
 /// A pair of structurally similar nodes found via graph embedding.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct SimilarPair {
     pub node_a: String,
     pub node_b: String,
@@ -293,8 +345,7 @@ mod tests {
     #[test]
     fn extra_fields_flatten() {
         let mut node = sample_node();
-        node.extra
-            .insert("custom".into(), serde_json::Value::Bool(true));
+        node.extra.insert("custom".into(), Deger::Bool(true));
         let json = serde_json::to_string(&node).unwrap();
         assert!(json.contains(r#""custom":true"#));
     }
