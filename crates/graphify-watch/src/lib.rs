@@ -195,15 +195,6 @@ fn rebuild(
     let _ = graphify_export::export_svg(&graph, &communities, output_dir);
     let _ = graphify_export::export_wiki(&graph, &communities, &community_labels, output_dir);
 
-    let detection_json = serde_json::json!({
-        "total_files": detection.total_files,
-        "total_words": detection.total_words,
-        "warning": detection.warning,
-    });
-    let question_json: Vec<serde_json::Value> = questions
-        .iter()
-        .map(|q| serde_json::to_value(q).unwrap_or_default())
-        .collect();
     let token_cost: HashMap<String, usize> =
         HashMap::from([("input".to_string(), 0), ("output".to_string(), 0)]);
 
@@ -215,10 +206,10 @@ fn rebuild(
         community_labels: &community_labels,
         god_nodes: &god_list,
         surprises: &surprise_list,
-        detection_result: &detection_json,
+        detection_method: None,
         token_cost: &token_cost,
         root: &root_str,
-        suggested_questions: Some(&question_json),
+        suggested_questions: Some(&questions),
     }) {
         let report_path = output_dir.join("GRAPH_REPORT.md");
         let _ = std::fs::write(&report_path, &report);

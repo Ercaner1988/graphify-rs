@@ -38,7 +38,7 @@ katla = { git = "https://github.com/Ercaner1988/katla", rev = "450d13f85e4ab74d9
 tokio = { version = "1", features = ["rt-multi-thread", "fs", "net", "io-util", "macros", "sync", "time"] }
 
 # HTTP
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "charset", "http2"] }
 
 # Graph
 petgraph = { version = "0.6", features = ["serde-1"] }

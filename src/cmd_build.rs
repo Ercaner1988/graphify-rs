@@ -115,7 +115,6 @@ pub async fn cmd_build(
         &god_list,
         &surprise_list,
         &questions,
-        &detection,
         &output_dir,
         path,
         max_viz_nodes,
@@ -614,7 +613,6 @@ fn step_export(
     god_list: &[graphify_core::model::GodNode],
     surprise_list: &[graphify_core::model::Surprise],
     questions: &[HashMap<String, String>],
-    detection: &graphify_detect::DetectResult,
     output_dir: &Path,
     root: &str,
     max_viz_nodes: Option<usize>,
@@ -647,17 +645,8 @@ fn step_export(
         );
     }
 
-    let detection_json = serde_json::json!({
-        "total_files": detection.total_files,
-        "total_words": detection.total_words,
-        "warning": detection.warning,
-    });
     let token_cost: HashMap<String, usize> =
         HashMap::from([("input".to_string(), 0), ("output".to_string(), 0)]);
-    let question_json: Vec<serde_json::Value> = questions
-        .iter()
-        .map(|q| serde_json::to_value(q).unwrap_or_default())
-        .collect();
 
     if should_export("report") {
         let report = graphify_export::generate_report(&graphify_export::ReportInput {
@@ -667,10 +656,10 @@ fn step_export(
             community_labels,
             god_nodes: god_list,
             surprises: surprise_list,
-            detection_result: &detection_json,
+            detection_method: None,
             token_cost: &token_cost,
             root,
-            suggested_questions: Some(&question_json),
+            suggested_questions: Some(questions),
         })?;
         let report_path = output_dir.join("GRAPH_REPORT.md");
         std::fs::write(&report_path, &report)?;

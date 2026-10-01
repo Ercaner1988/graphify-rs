@@ -722,11 +722,6 @@ fn test_all_export_formats() {
     let god_list = graphify_analyze::god_nodes(&graph, 5);
     let surprise_list = graphify_analyze::surprising_connections(&graph, &communities, 3);
     let questions = graphify_analyze::suggest_questions(&graph, &communities, &community_labels, 3);
-    let detection_json = serde_json::json!({"total_files": 1, "total_words": 50, "warning": null});
-    let question_json: Vec<serde_json::Value> = questions
-        .iter()
-        .map(|q| serde_json::to_value(q).unwrap_or_default())
-        .collect();
     let token_cost: HashMap<String, usize> =
         HashMap::from([("input".into(), 0), ("output".into(), 0)]);
     let report = graphify_export::generate_report(&graphify_export::ReportInput {
@@ -736,10 +731,10 @@ fn test_all_export_formats() {
         community_labels: &community_labels,
         god_nodes: &god_list,
         surprises: &surprise_list,
-        detection_result: &detection_json,
+        detection_method: None,
         token_cost: &token_cost,
         root: ".",
-        suggested_questions: Some(&question_json),
+        suggested_questions: Some(&questions),
     })
     .unwrap();
     assert!(

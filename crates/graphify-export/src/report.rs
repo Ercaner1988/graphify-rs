@@ -18,10 +18,12 @@ pub struct ReportInput<'a> {
     pub community_labels: &'a HashMap<usize, String>,
     pub god_nodes: &'a [GodNode],
     pub surprises: &'a [Surprise],
-    pub detection_result: &'a serde_json::Value,
+    /// Topluluk algılama yöntemi; verilirse rapora yazılır.
+    pub detection_method: Option<&'a str>,
     pub token_cost: &'a HashMap<String, usize>,
     pub root: &'a str,
-    pub suggested_questions: Option<&'a [serde_json::Value]>,
+    /// `suggest_questions` çıktısı ("question" anahtarı okunur).
+    pub suggested_questions: Option<&'a [HashMap<String, String>]>,
 }
 
 /// Generate a comprehensive markdown analysis report.
@@ -33,7 +35,7 @@ pub fn generate_report(input: &ReportInput) -> anyhow::Result<String> {
         community_labels,
         god_nodes,
         surprises,
-        detection_result,
+        detection_method,
         token_cost,
         root,
         suggested_questions,
@@ -44,7 +46,7 @@ pub fn generate_report(input: &ReportInput) -> anyhow::Result<String> {
     let community_labels = *community_labels;
     let god_nodes = *god_nodes;
     let surprises = *surprises;
-    let detection_result = *detection_result;
+    let detection_method = *detection_method;
     let token_cost = *token_cost;
     let root = *root;
     let suggested_questions = *suggested_questions;
@@ -235,7 +237,7 @@ pub fn generate_report(input: &ReportInput) -> anyhow::Result<String> {
         writeln!(report)?;
     }
 
-    if let Some(method) = detection_result.get("method").and_then(|v| v.as_str()) {
+    if let Some(method) = detection_method {
         writeln!(report, "**Community detection method:** {method}")?;
         writeln!(report)?;
     }
@@ -260,9 +262,7 @@ pub fn generate_report(input: &ReportInput) -> anyhow::Result<String> {
         writeln!(report, "## ❓ Suggested Questions")?;
         writeln!(report)?;
         for q in questions {
-            if let Some(text) = q.as_str() {
-                writeln!(report, "1. {text}")?;
-            } else if let Some(text) = q.get("question").and_then(|v| v.as_str()) {
+            if let Some(text) = q.get("question") {
                 writeln!(report, "1. {text}")?;
             }
         }
@@ -342,7 +342,7 @@ mod tests {
             community_labels: &labels,
             god_nodes: &[],
             surprises: &[],
-            detection_result: &serde_json::json!({}),
+            detection_method: None,
             token_cost: &HashMap::new(),
             root: "/test",
             suggested_questions: None,
