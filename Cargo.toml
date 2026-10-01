@@ -32,7 +32,7 @@ serde_json = "1.0"
 # graphify'ın kendi dosyaları (önbellek, değişim dizini, graph.bin): saf Rust, sıfır kopyalı
 rkyv = "0.8"
 # Ortak Türkçe katlama (altin-kapi ADR 0002); git + rev: kardeş depo yolu CI'da yok.
-katla = { git = "https://github.com/Ercaner1988/katla", rev = "450d13f85e4ab74d9e2d646f6417c768ce56f32c" }
+katla = { git = "https://github.com/Ercaner1988/katla", rev = "dc3baa40a058a4222cb16ac05561978a874ab7a7" }
 
 # Async
 tokio = { version = "1", features = ["rt-multi-thread", "fs", "net", "io-util", "macros", "sync", "time"] }

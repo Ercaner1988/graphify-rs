@@ -1275,7 +1275,7 @@ dependencies = [
 [[package]]
 name = "katla"
 version = "0.1.0"
-source = "git+https://github.com/Ercaner1988/katla?rev=450d13f85e4ab74d9e2d646f6417c768ce56f32c#450d13f85e4ab74d9e2d646f6417c768ce56f32c"
+source = "git+https://github.com/Ercaner1988/katla?rev=dc3baa40a058a4222cb16ac05561978a874ab7a7#dc3baa40a058a4222cb16ac05561978a874ab7a7"
 dependencies = [
  "unicode-normalization",
 ]
