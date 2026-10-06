@@ -1,0 +1,3 @@
+# Satır sonu her zaman LF: Windows araçları dosyayı CRLF ile yeniden yazınca git her
+# satırı değişmiş sayıyor, kabuk kancaları (.githooks) da CRLF ile çalışmıyor.
+* text=auto eol=lf
