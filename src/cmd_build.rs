@@ -17,6 +17,7 @@ pub async fn cmd_build(
     output: &str,
     no_llm: bool,
     code_only: bool,
+    no_cluster: bool,
     formats: &[String],
     verb: Verbosity,
     jobs: Option<usize>,
@@ -100,7 +101,7 @@ pub async fn cmd_build(
         communities,
         cohesion,
         community_labels,
-    } = step_cluster(&mut graph, verb);
+    } = step_cluster(&mut graph, no_cluster, verb);
 
     info_print!(verb, "  {} graph...", "Analyzing".cyan());
     let god_list = graphify_analyze::god_nodes(&graph, 10);
@@ -536,8 +537,17 @@ struct ClusterResult {
 
 fn step_cluster(
     graph: &mut graphify_core::graph::KnowledgeGraph,
+    no_cluster: bool,
     verb: Verbosity,
 ) -> ClusterResult {
+    if no_cluster {
+        info_print!(verb, "  {} community clustering (--no-cluster)", "Skipping".yellow());
+        return ClusterResult {
+            communities: HashMap::new(),
+            cohesion: HashMap::new(),
+            community_labels: HashMap::new(),
+        };
+    }
     info_print!(verb, "  {} communities...", "Detecting".cyan());
     let communities = graphify_cluster::cluster(graph);
     let cohesion = graphify_cluster::score_all(graph, &communities);

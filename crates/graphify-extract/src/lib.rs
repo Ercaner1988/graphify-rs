@@ -138,6 +138,11 @@ pub fn extract(paths: &[PathBuf]) -> ExtractionResult {
                 }
             };
 
+            if source.len() > 3 * 1024 * 1024 {
+                debug!("skipping oversized source file (>3MB): {}", path.display());
+                return None;
+            }
+
             debug!("extracting {} ({})", path.display(), lang);
 
             // Vue SFCs: isolate the <script> block so tree-sitter sees clean JS/TS.

@@ -47,6 +47,9 @@ enum Commands {
         no_llm: bool,
         #[arg(long)]
         code_only: bool,
+        /// Skip community detection (clustering) for instant relationship graph building on massive corpuses
+        #[arg(long)]
+        no_cluster: bool,
         /// Export formats (comma-separated). Available: json,html,graphml,cypher,svg,wiki,obsidian,report. Default: json,report
         #[arg(long, value_delimiter = ',')]
         format: Vec<String>,
@@ -278,12 +281,16 @@ async fn main() -> Result<()> {
         .with_env_filter(tracing_subscriber::EnvFilter::new(filter))
         .init();
 
+    let stack_size = std::env::var("RUST_MIN_STACK")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(16 * 1024 * 1024);
+
+    let mut pool_builder = rayon::ThreadPoolBuilder::new().stack_size(stack_size);
     if let Some(jobs) = cli.jobs {
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(jobs)
-            .build_global()
-            .ok(); // ignore if already initialized
+        pool_builder = pool_builder.num_threads(jobs);
     }
+    pool_builder.build_global().ok();
 
     match cli.command {
         Commands::Build {
@@ -291,6 +298,7 @@ async fn main() -> Result<()> {
             output,
             no_llm,
             code_only,
+            no_cluster,
             format,
             max_viz_nodes,
         } => {
@@ -305,6 +313,7 @@ async fn main() -> Result<()> {
             };
             let effective_no_llm = no_llm || app_cfg.no_llm.unwrap_or(false);
             let effective_code_only = code_only || app_cfg.code_only.unwrap_or(false);
+            let effective_no_cluster = no_cluster;
             let effective_formats = if format.is_empty() {
                 app_cfg.formats.unwrap_or_default()
             } else {
@@ -316,6 +325,7 @@ async fn main() -> Result<()> {
                 &effective_output,
                 effective_no_llm,
                 effective_code_only,
+                effective_no_cluster,
                 &effective_formats,
                 verb,
                 cli.jobs,
@@ -458,6 +468,7 @@ async fn main() -> Result<()> {
                     &output_dir,
                     true,
                     true,
+                    false,
                     &["json".to_string()],
                     Verbosity::Quiet,
                     None,
@@ -504,6 +515,7 @@ async fn main() -> Result<()> {
                             &out.to_string_lossy(),
                             effective_no_llm,
                             effective_code_only,
+                            false,
                             &effective_formats,
                             verb,
                             jobs,
