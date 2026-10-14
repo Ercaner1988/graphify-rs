@@ -23,6 +23,9 @@ pub fn build_node_to_community(communities: &HashMap<usize, Vec<String>>) -> Has
 /// macOS HFS+/APFS limit is 255 bytes per component; we reserve 15 for extension + safety.
 pub const MAX_FILENAME_BYTES: usize = 240;
 
+/// Maximum source bytes accepted by discovery and AST extraction (3 MiB).
+pub const MAX_SOURCE_BYTES: u64 = 3 * 1024 * 1024;
+
 /// Truncate a string to at most `max_bytes` bytes while preserving UTF-8 validity.
 pub fn truncate_to_bytes(s: &str, max_bytes: usize) -> &str {
     if s.len() <= max_bytes {

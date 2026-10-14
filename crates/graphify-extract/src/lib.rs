@@ -15,6 +15,7 @@ pub mod semantic;
 pub mod treesitter;
 
 use std::collections::{HashMap, HashSet};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use graphify_core::confidence::Confidence;
@@ -130,7 +131,12 @@ pub fn extract(paths: &[PathBuf]) -> ExtractionResult {
                 return None;
             };
 
-            let source = match std::fs::read(path) {
+            let source = match std::fs::File::open(path).and_then(|file| {
+                let mut source = Vec::new();
+                file.take(graphify_core::MAX_SOURCE_BYTES + 1)
+                    .read_to_end(&mut source)?;
+                Ok(source)
+            }) {
                 Ok(s) => s,
                 Err(e) => {
                     warn!("cannot read {}: {e}", path.display());
@@ -138,8 +144,8 @@ pub fn extract(paths: &[PathBuf]) -> ExtractionResult {
                 }
             };
 
-            if source.len() > 3 * 1024 * 1024 {
-                debug!("skipping oversized source file (>3MB): {}", path.display());
+            if source.len() as u64 > graphify_core::MAX_SOURCE_BYTES {
+                warn!("skipping source over 3 MiB: {}", path.display());
                 return None;
             }
 
@@ -289,8 +295,6 @@ fn resolve_cross_file_imports(result: &mut ExtractionResult) {
     let mut id_to_label: HashMap<String, String> = HashMap::new();
     let mut stem_to_entities: HashMap<String, Vec<(String, String, NodeType)>> = HashMap::new();
     let mut go_pkg_to_entities: HashMap<String, Vec<(String, String, NodeType)>> = HashMap::new();
-    let mut source_file_to_stem: HashMap<String, String> = HashMap::new();
-    let mut file_id_to_source: HashMap<String, String> = HashMap::new();
 
     let defined_entity_ids: HashSet<String> = result
         .edges
@@ -312,18 +316,7 @@ fn resolve_cross_file_imports(result: &mut ExtractionResult) {
     for node in &result.nodes {
         id_to_label.insert(node.id.clone(), node.label.clone());
 
-        if node.node_type == NodeType::File {
-            let stem = Path::new(&node.source_file)
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("")
-                .to_string();
-            source_file_to_stem.insert(node.source_file.clone(), stem);
-            file_id_to_source.insert(node.id.clone(), node.source_file.clone());
-            continue;
-        }
-
-        if !defined_entity_ids.contains(&node.id) {
+        if node.node_type == NodeType::File || !defined_entity_ids.contains(&node.id) {
             continue;
         }
 
@@ -383,12 +376,11 @@ fn resolve_cross_file_imports(result: &mut ExtractionResult) {
             }
             "go" => resolve_go_import(import_label, &stem_to_entities, &go_pkg_to_entities),
             "rs" => resolve_rust_import(import_label, &stem_to_entities),
-            "java" => resolve_dot_import(import_label, &stem_to_entities),
-            "cs" => resolve_dot_import(import_label, &stem_to_entities),
+            "java" | "cs" => resolve_dot_import(import_label, &stem_to_entities),
             "c" | "h" | "cpp" | "cc" | "cxx" | "hpp" => {
                 resolve_c_include(import_label, &stem_to_entities)
             }
-            "kt" | "kts" => {
+            "kt" | "kts" | "scala" | "swift" => {
                 let cleaned = import_label.strip_prefix("import ").unwrap_or(import_label);
                 resolve_dot_import(cleaned.trim(), &stem_to_entities)
             }
@@ -397,14 +389,6 @@ fn resolve_cross_file_imports(result: &mut ExtractionResult) {
                 resolve_backslash_import(cleaned.trim(), &stem_to_entities)
             }
             "dart" => resolve_dart_import(import_label, &stem_to_entities),
-            "scala" => {
-                let cleaned = import_label.strip_prefix("import ").unwrap_or(import_label);
-                resolve_dot_import(cleaned.trim(), &stem_to_entities)
-            }
-            "swift" => {
-                let cleaned = import_label.strip_prefix("import ").unwrap_or(import_label);
-                resolve_dot_import(cleaned.trim(), &stem_to_entities)
-            }
             _ => continue,
         };
 
