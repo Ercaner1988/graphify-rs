@@ -2,6 +2,29 @@ use super::*;
 use graphify_core::model::{GraphEdge, GraphNode};
 
 #[test]
+fn source_size_limit_includes_exact_boundary() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("boundary.rs");
+    let mut source = b"fn boundary_function() {}".to_vec();
+    source.resize(graphify_core::MAX_SOURCE_BYTES as usize, b' ');
+    std::fs::write(&path, source).unwrap();
+    let result = extract(std::slice::from_ref(&path));
+    assert!(
+        result
+            .nodes
+            .iter()
+            .any(|node| node.label == "boundary_function()")
+    );
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(&path)
+        .unwrap()
+        .set_len(graphify_core::MAX_SOURCE_BYTES + 1)
+        .unwrap();
+    assert!(extract(&[path]).nodes.is_empty());
+}
+
+#[test]
 fn vue_extract_script_js() {
     let sfc = b"<template><div/></template>\n<script>\nexport default {}\n</script>\n<style/>";
     let (cleaned, lang) = vue_extract_script(sfc);

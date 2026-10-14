@@ -17,6 +17,7 @@ pub async fn cmd_build(
     output: &str,
     no_llm: bool,
     code_only: bool,
+    no_cluster: bool,
     formats: &[String],
     verb: Verbosity,
     jobs: Option<usize>,
@@ -26,6 +27,8 @@ pub async fn cmd_build(
     let root = PathBuf::from(path);
     let output_dir = PathBuf::from(output);
     let cache_dir = output_dir.join("cache");
+    let mode_path = output_dir.join("cluster-mode");
+    let cluster_mode = if no_cluster { "disabled" } else { "enabled" };
 
     let all_formats = ["json", "report"];
     let selected: Vec<&str> = if formats.is_empty() {
@@ -37,7 +40,9 @@ pub async fn cmd_build(
 
     let (detection, changed) = step_detect(&root, &output_dir, verb)?;
 
-    if !changed {
+    // A missing/unreadable mode rebuilds older outputs too. Only a successful
+    // build below records the mode, so failed builds cannot validate stale output.
+    if !changed && std::fs::read_to_string(&mode_path).is_ok_and(|saved| saved == cluster_mode) {
         let all_outputs_present = selected.iter().all(|fmt| {
             let p = match *fmt {
                 "json" => output_dir.join("graph.json"),
@@ -60,6 +65,10 @@ pub async fn cmd_build(
             );
             return Ok(());
         }
+    }
+
+    if mode_path.exists() {
+        std::fs::remove_file(&mode_path).context("failed to invalidate previous build mode")?;
     }
 
     let mut extractions = step_extract_ast(&root, &cache_dir, &detection, code_only, verb)?;
@@ -100,7 +109,7 @@ pub async fn cmd_build(
         communities,
         cohesion,
         community_labels,
-    } = step_cluster(&mut graph, verb);
+    } = step_cluster(&mut graph, no_cluster, verb);
 
     info_print!(verb, "  {} graph...", "Analyzing".cyan());
     let god_list = graphify_analyze::god_nodes(&graph, 10);
@@ -121,6 +130,8 @@ pub async fn cmd_build(
         should_export,
         verb,
     )?;
+
+    std::fs::write(&mode_path, cluster_mode).context("failed to save successful build mode")?;
 
     info_print!(
         verb,
@@ -528,6 +539,7 @@ fn resolve_llm_config(
     }
 }
 
+#[derive(Default)]
 struct ClusterResult {
     communities: HashMap<usize, Vec<String>>,
     cohesion: HashMap<usize, f64>,
@@ -536,8 +548,17 @@ struct ClusterResult {
 
 fn step_cluster(
     graph: &mut graphify_core::graph::KnowledgeGraph,
+    no_cluster: bool,
     verb: Verbosity,
 ) -> ClusterResult {
+    if no_cluster {
+        info_print!(
+            verb,
+            "  {} community clustering (--no-cluster)",
+            "Skipping".yellow()
+        );
+        return ClusterResult::default();
+    }
     info_print!(verb, "  {} communities...", "Detecting".cyan());
     let communities = graphify_cluster::cluster(graph);
     let cohesion = graphify_cluster::score_all(graph, &communities);

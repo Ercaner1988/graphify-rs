@@ -47,6 +47,9 @@ enum Commands {
         no_llm: bool,
         #[arg(long)]
         code_only: bool,
+        /// Skip community detection (clustering) for large corpora
+        #[arg(long)]
+        no_cluster: bool,
         /// Export formats (comma-separated). Available: json,html,graphml,cypher,svg,wiki,obsidian,report. Default: json,report
         #[arg(long, value_delimiter = ',')]
         format: Vec<String>,
@@ -278,12 +281,16 @@ async fn main() -> Result<()> {
         .with_env_filter(tracing_subscriber::EnvFilter::new(filter))
         .init();
 
+    let stack_size = std::env::var("RUST_MIN_STACK")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(16 * 1024 * 1024);
+
+    let mut pool_builder = rayon::ThreadPoolBuilder::new().stack_size(stack_size);
     if let Some(jobs) = cli.jobs {
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(jobs)
-            .build_global()
-            .ok(); // ignore if already initialized
+        pool_builder = pool_builder.num_threads(jobs);
     }
+    pool_builder.build_global().ok();
 
     match cli.command {
         Commands::Build {
@@ -291,6 +298,7 @@ async fn main() -> Result<()> {
             output,
             no_llm,
             code_only,
+            no_cluster,
             format,
             max_viz_nodes,
         } => {
@@ -316,6 +324,7 @@ async fn main() -> Result<()> {
                 &effective_output,
                 effective_no_llm,
                 effective_code_only,
+                no_cluster,
                 &effective_formats,
                 verb,
                 cli.jobs,
@@ -333,21 +342,11 @@ async fn main() -> Result<()> {
             budget,
             graph,
         } => {
-            let graph_path = graph.unwrap_or_else(|| {
-                paths::resolve_default_output(Path::new("."))
-                    .join("graph.json")
-                    .to_string_lossy()
-                    .to_string()
-            });
+            let graph_path = graph.unwrap_or_else(paths::default_graph_path);
             cmd_query(&question, dfs, budget, &graph_path)?;
         }
         Commands::Benchmark { graph_path } => {
-            let gp = graph_path.unwrap_or_else(|| {
-                paths::resolve_default_output(Path::new("."))
-                    .join("graph.json")
-                    .to_string_lossy()
-                    .to_string()
-            });
+            let gp = graph_path.unwrap_or_else(paths::default_graph_path);
             let result = graphify_benchmark::run_benchmark(Path::new(&gp), None)?;
             graphify_benchmark::print_benchmark(&result);
         }
@@ -439,12 +438,7 @@ async fn main() -> Result<()> {
             println!("Saved to {}", out.display());
         }
         Commands::Serve { graph } => {
-            let graph_str = graph.unwrap_or_else(|| {
-                paths::resolve_default_output(Path::new("."))
-                    .join("graph.json")
-                    .to_string_lossy()
-                    .to_string()
-            });
+            let graph_str = graph.unwrap_or_else(paths::default_graph_path);
             let graph_path = Path::new(&graph_str);
             if !graph_path.exists() {
                 tracing::info!("{} not found, running auto-build...", graph_path.display());
@@ -458,6 +452,7 @@ async fn main() -> Result<()> {
                     &output_dir,
                     true,
                     true,
+                    false,
                     &["json".to_string()],
                     Verbosity::Quiet,
                     None,
@@ -504,6 +499,7 @@ async fn main() -> Result<()> {
                             &out.to_string_lossy(),
                             effective_no_llm,
                             effective_code_only,
+                            false,
                             &effective_formats,
                             verb,
                             jobs,
@@ -530,12 +526,7 @@ async fn main() -> Result<()> {
             cmd_diff(&old, &new, &output)?;
         }
         Commands::Stats { graph } => {
-            let gp = graph.unwrap_or_else(|| {
-                paths::resolve_default_output(Path::new("."))
-                    .join("graph.json")
-                    .to_string_lossy()
-                    .to_string()
-            });
+            let gp = graph.unwrap_or_else(paths::default_graph_path);
             cmd_stats(&gp)?;
         }
         Commands::Affected {
@@ -545,12 +536,7 @@ async fn main() -> Result<()> {
             output,
             graph,
         } => {
-            let gp = graph.unwrap_or_else(|| {
-                paths::resolve_default_output(Path::new("."))
-                    .join("graph.json")
-                    .to_string_lossy()
-                    .to_string()
-            });
+            let gp = graph.unwrap_or_else(paths::default_graph_path);
             cmd_affected(&files, stdin, depth, &output, &gp)?;
         }
         Commands::Completions { shell } => {

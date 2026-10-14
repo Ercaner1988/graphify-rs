@@ -44,11 +44,15 @@ pub struct DetectedFile {
 }
 
 /// Classify a file by its extension (and, for ambiguous cases, a peek at its
-/// content).  Returns `None` if the file type is not recognised.
+/// content). Returns `None` for unrecognised types or sources over 3 MiB.
 pub fn classify_file(path: &Path) -> Option<FileType> {
     let ext = extension_lower(path)?;
 
     if CODE_EXTENSIONS.contains(&ext.as_str()) {
+        if fs::metadata(path).is_ok_and(|meta| meta.len() > graphify_core::MAX_SOURCE_BYTES) {
+            tracing::warn!("skipping source over 3 MiB: {}", path.display());
+            return None;
+        }
         return Some(FileType::Code);
     }
 
@@ -138,6 +142,17 @@ fn looks_like_paper(path: &Path) -> bool {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn classify_code_size_limit() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("boundary.rs");
+        let file = fs::File::create(&path).unwrap();
+        file.set_len(graphify_core::MAX_SOURCE_BYTES).unwrap();
+        assert_eq!(classify_file(&path), Some(FileType::Code));
+        file.set_len(graphify_core::MAX_SOURCE_BYTES + 1).unwrap();
+        assert_eq!(classify_file(&path), None);
+    }
 
     #[test]
     fn classify_code_extensions() {
